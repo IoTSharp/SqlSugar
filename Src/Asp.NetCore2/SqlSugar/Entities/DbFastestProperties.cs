@@ -9,6 +9,8 @@ namespace SqlSugar
     public class DbFastestProperties
     {
         public bool HasOffsetTime { get; set; }
+        // 不支持偏移时间的提供程序可选择在批量写入前统一转换为 UTC DateTime。
+        public bool IsConvertDateTimeOffsetToUtcDateTime { get; set; }
         public string[] WhereColumns { get; set; }
         public bool IsOffIdentity { get;  set; }
         public bool IsMerge { get; set; }

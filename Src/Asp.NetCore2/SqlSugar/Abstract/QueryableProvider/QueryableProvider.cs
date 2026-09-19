@@ -698,6 +698,10 @@ namespace SqlSugar
         public ISugarQueryable<T> TranLock(DbLockType? LockType = DbLockType.Wait) 
         {
             if (LockType == null) return this;
+            if (this.Context.CurrentConnectionConfig.DbType == DbType.SonnetDB)
+            {
+                throw new NotSupportedException("SonnetDB 当前不支持 SqlSugar 的事务行锁语义。");
+            }
             Check.ExceptionEasy(this.Context.Ado.Transaction == null, "need BeginTran", "需要事务才能使用TranLock");
             Check.ExceptionEasy(this.QueryBuilder.IsSingle()==false, "TranLock, can only be used for single table query", "TranLock只能用在单表查询");
             if (this.Context.CurrentConnectionConfig.DbType == DbType.SqlServer)
