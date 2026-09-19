@@ -10,6 +10,11 @@ SonnetDB 已具备 SqlSugar 关系查询的核心路径：双引号标识符、�
 
 提供程序只能生成 SonnetDB 已确认的方言。无法保真翻译的 SqlSugar 特性必须在生成 SQL 前抛出 `NotSupportedException`，不能静默降级为语义不同的 SQL，也不能继续复用 PostgreSQL 方言。
 
+## 运行时与发布边界
+
+- `SqlSugar.SonnetDBCore` 和 SonnetDB 3.1.0 驱动目前仅提供 `net10.0` 资产，使用方需要 .NET 10 或更高版本。
+- SqlSugar 通过旁加载 `SqlSugar.SonnetDBCore.dll` 创建提供程序类型；请在普通发布输出中保留该 DLL 与 `SqlSugar.dll`。NativeAOT、激进裁剪和 single-file 捆绑发布不在当前验证范围内，除非应用自行预加载程序集并配置相应保留规则。
+
 ## 判定标准与证据
 
 状态含义：

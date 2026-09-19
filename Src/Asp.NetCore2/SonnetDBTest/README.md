@@ -17,3 +17,5 @@ dotnet run --project Src/Asp.NetCore2/SonnetDBTest/SonnetDBTest.csproj
 - 已知方言边界：单结果集、无 CTE、无 `RIGHT JOIN`，以及不接受多条 SQL 拼接。
 
 当前 SonnetDB NuGet 包仅提供 `net10.0` ADO.NET 驱动，因此该项目和提供程序都必须使用 .NET 10 或更高版本。
+
+提供程序通过旁加载程序集进行动态类型创建；NativeAOT、激进裁剪和 single-file 捆绑发布暂未支持，请使用保留独立 DLL 的普通发布方式。
