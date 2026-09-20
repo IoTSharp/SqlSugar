@@ -283,6 +283,26 @@ namespace SqlSugar.SonnetDB
                 StringComparison.OrdinalIgnoreCase));
         }
 
+        public override bool IsIdentity(string tableName, string columnName)
+        {
+            if (string.IsNullOrWhiteSpace(tableName))
+            {
+                throw new ArgumentException("表名称不能为空。", nameof(tableName));
+            }
+
+            if (string.IsNullOrWhiteSpace(columnName))
+            {
+                throw new ArgumentException("列名称不能为空。", nameof(columnName));
+            }
+
+            var normalizedColumnName = NormalizeIdentifier(columnName);
+            return GetColumnInfosByTableName(tableName, false).Any(column =>
+                column.IsIdentity && string.Equals(
+                    column.DbColumnName,
+                    normalizedColumnName,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
         public override bool IsAnyConstraint(string constraintName)
         {
             throw new NotSupportedException(

@@ -72,6 +72,8 @@ static void 验证CodeFirst与元数据(SqlSugarClient db)
     var columns = db.DbMaintenance.GetColumnInfosByTableName("sonnet_smoke_devices", false);
     断言(columns.Any(it => it.DbColumnName.Equals("id", StringComparison.OrdinalIgnoreCase) && it.IsPrimarykey && it.IsIdentity), "元数据未返回自增主键 id。");
     断言(columns.Any(it => it.DbColumnName.Equals("metadata", StringComparison.OrdinalIgnoreCase) && it.DataType.Equals("JSON", StringComparison.OrdinalIgnoreCase)), "元数据未返回 JSON 列 metadata。");
+    断言(db.DbMaintenance.IsIdentity("sonnet_smoke_devices", "id"), "IsIdentity 未识别自增主键id。");
+    断言(!db.DbMaintenance.IsIdentity("sonnet_smoke_devices", "name"), "IsIdentity 不应将普通列标记为自增列。");
 
     var schemaTable = db.Ado.GetDataTable(
         "SELECT table_name FROM information_schema.tables WHERE table_name = @tableName",
