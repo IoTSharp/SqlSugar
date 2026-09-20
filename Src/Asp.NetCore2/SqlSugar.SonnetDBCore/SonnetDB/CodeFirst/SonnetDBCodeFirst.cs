@@ -164,7 +164,8 @@ namespace SqlSugar.SonnetDB
                 }
                 else if (!SonnetDBSchemaSql.AreEquivalentDefaults(
                              databaseColumn.DefaultValue,
-                             SonnetDBSchemaSql.FormatDefaultValue(column.DefaultValue, expected.DataType)))
+                             SonnetDBSchemaSql.FormatDefaultValue(column.DefaultValue, expected.DataType),
+                             expected.DataType))
                 {
                     Context.DbMaintenance.AddDefaultValue(tableName, column.DbColumnName, column.DefaultValue);
                 }

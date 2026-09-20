@@ -582,7 +582,11 @@ namespace SqlSugar
                     InstanceFactory.CustomDllName = SugarCompatible.IsFramework ? throw new Exception("Only.NET CORE is supported") : "SqlSugar.DuckDBCore";
                     break;
                 case DbType.SonnetDB:
-                    InstanceFactory.CustomDllName = SugarCompatible.IsFramework ? throw new Exception("SonnetDB 提供程序需要 .NET 10 或更高版本。") : "SqlSugar.SonnetDBCore";
+                    if (SugarCompatible.IsFramework || Environment.Version.Major < 10)
+                    {
+                        throw new Exception("SonnetDB 提供程序需要 .NET 10 或更高版本。");
+                    }
+                    InstanceFactory.CustomDllName = "SqlSugar.SonnetDBCore";
                     break;
                 case DbType.MongoDb:
                     InstanceFactory.CustomDllName = SugarCompatible.IsFramework ? throw new Exception("Only.NET CORE is supported") : "SqlSugar.MongoDbCore";

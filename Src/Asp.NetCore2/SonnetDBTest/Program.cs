@@ -20,6 +20,7 @@ try
 
     验证CodeFirst与元数据(db);
     验证默认值演进(db);
+    验证自增键类型(db);
     验证保留大小写标识符(db);
     验证特殊列名单行插入(db);
     验证Fastest批量写入(db);
@@ -103,10 +104,44 @@ static void 验证默认值演进(SqlSugarClient db)
         .Single(it => it.DbColumnName.Equals("Site", StringComparison.OrdinalIgnoreCase));
     断言(!string.IsNullOrWhiteSpace(initial.DefaultValue), "CodeFirst 未创建列默认值。");
 
+    db.CodeFirst.InitTables<大小写默认值设备>();
+    var caseUpdated = db.DbMaintenance.GetColumnInfosByTableName("sonnet_default_evolution", false)
+        .Single(it => it.DbColumnName.Equals("Site", StringComparison.OrdinalIgnoreCase));
+    断言(caseUpdated.DefaultValue?.Contains("North", StringComparison.Ordinal) == true,
+        "STRING 默认值比较不应忽略大小写。");
+
     db.CodeFirst.InitTables<移除默认值设备>();
     var updated = db.DbMaintenance.GetColumnInfosByTableName("sonnet_default_evolution", false)
         .Single(it => it.DbColumnName.Equals("Site", StringComparison.OrdinalIgnoreCase));
     断言(string.IsNullOrWhiteSpace(updated.DefaultValue), "CodeFirst 移除默认值后，数据库仍保留旧默认值。");
+
+    db.CodeFirst.InitTables<字符串数字默认值设备>();
+    db.Ado.ExecuteCommand("INSERT INTO \"sonnet_string_numeric_default\" (\"Id\") VALUES (1)");
+    断言(
+        db.Queryable<字符串数字默认值设备>().Single().Text == "1",
+        "STRING 默认值为数字文本时必须按字符串保存。");
+}
+
+static void 验证自增键类型(SqlSugarClient db)
+{
+    Console.WriteLine("开始：自增键 CLR 类型");
+    db.CodeFirst.InitTables<UnsignedIdentitySmokeDevice>();
+    var device = new UnsignedIdentitySmokeDevice { Name = "unsigned" };
+    断言(
+        db.Insertable(device).ExecuteCommandIdentityIntoEntity() && device.Id == 1,
+        "无符号自增主键未正确回写实体。");
+
+    var asyncDevice = new UnsignedIdentitySmokeDevice { Name = "unsigned-async" };
+    断言(
+        db.Insertable(asyncDevice).ExecuteCommandIdentityIntoEntityAsync().GetAwaiter().GetResult() &&
+        asyncDevice.Id == 2,
+        "异步无符号自增主键未正确回写实体。");
+
+    db.CodeFirst.InitTables<LongIdentitySmokeDevice>();
+    var longDevice = new LongIdentitySmokeDevice { Name = "long" };
+    断言(
+        db.Insertable(longDevice).ExecuteCommandIdentityIntoEntity() && longDevice.Id == 1,
+        "长整型自增主键未正确回写实体。");
 }
 
 static int 验证插入与查询(SqlSugarClient db)
@@ -150,6 +185,10 @@ static void 验证保留大小写标识符(SqlSugarClient db)
         "SELECT table_name FROM information_schema.tables WHERE table_name = @tableName",
         new SugarParameter("@tableName", "SonnetMixedCase"));
     断言(schema.Rows.Count == 1, "代码优先未保留 SonnetMixedCase 表名的大小写。");
+    断言(
+        db.DbMaintenance.GetColumnInfosByTableName("sonnetmixedcase", false).Count == 2 &&
+        db.DbMaintenance.IsAnyColumn("sonnetmixedcase", "recordid", false),
+        "混合大小写表名的元数据查询应遵循 SqlSugar 的大小写不敏感规则。");
 
     db.Insertable(new 大小写设备 { RecordId = 1, DisplayName = "保留大小写" }).ExecuteCommand();
     var loaded = db.Queryable<大小写设备>().InSingle(1);
@@ -288,6 +327,7 @@ static void 验证Fastest批量写入(SqlSugarClient db)
 
     var dataTableTime = new DateTimeOffset(2026, 9, 20, 9, 45, 0, TimeSpan.FromHours(-7));
     var dataTable = new DataTable();
+    dataTable.TableName = "caller_table_name";
     dataTable.Columns.Add(nameof(FastSmokeDevice.Name), typeof(string));
     dataTable.Columns.Add(nameof(FastSmokeDevice.Amount), typeof(double));
     dataTable.Columns.Add(nameof(FastSmokeDevice.OccurredAt), typeof(DateTimeOffset));
@@ -300,6 +340,7 @@ static void 验证Fastest批量写入(SqlSugarClient db)
     断言(
         dataTable.Columns.Cast<DataColumn>().Select(column => column.ColumnName).SequenceEqual(sourceColumnNames),
         "Fastest DataTable 批量写入不应删除调用方的列。");
+    断言(dataTable.TableName == "caller_table_name", "Fastest DataTable 批量写入不应修改调用方的表名。");
     断言(
         读取Fastest时间(db, "fast-datatable") == dataTableTime.UtcDateTime,
         "Fastest DataTable 批量写入未将非 UTC DateTimeOffset 归一化为 UTC。");
@@ -806,6 +847,14 @@ static void 验证组合查询(SqlSugarClient db)
         .Select((left, right) => new { LeftId = left.Id, RightName = right.Name })
         .ToList();
     断言(leftJoinRows.Count == db.Queryable<SmokeDevice>().Count() && leftJoinRows.All(it => it.RightName == null), "LEFT JOIN 未保留左侧未匹配行。");
+
+    var pagedJoinRows = db.Queryable<SmokeDevice, SmokeDevice>(
+            (left, right) => new JoinQueryInfos(JoinType.Inner, left.Id == right.Id))
+        .Select((left, right) => new { LeftId = left.Id, RightId = right.Id })
+        .Skip(0)
+        .Take(1)
+        .ToList();
+    断言(pagedJoinRows.Count == 1, "多表分页的自动排序列不应丢失表限定符。");
 }
 
 static void 验证方言边界(SqlSugarClient db)
@@ -950,12 +999,50 @@ public sealed class 默认值设备
 }
 
 [SugarTable("sonnet_default_evolution")]
+public sealed class 大小写默认值设备
+{
+    [SugarColumn(IsPrimaryKey = true)]
+    public int Id { get; set; }
+
+    [SugarColumn(DefaultValue = "North")]
+    public string Site { get; set; } = string.Empty;
+}
+
+[SugarTable("sonnet_default_evolution")]
 public sealed class 移除默认值设备
 {
     [SugarColumn(IsPrimaryKey = true)]
     public int Id { get; set; }
 
     public string Site { get; set; } = string.Empty;
+}
+
+[SugarTable("sonnet_string_numeric_default")]
+public sealed class 字符串数字默认值设备
+{
+    [SugarColumn(IsPrimaryKey = true)]
+    public int Id { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public string Text { get; set; } = string.Empty;
+}
+
+[SugarTable("sonnet_unsigned_identity_devices")]
+public sealed class UnsignedIdentitySmokeDevice
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public uint Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+}
+
+[SugarTable("sonnet_long_identity_devices")]
+public sealed class LongIdentitySmokeDevice
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
 }
 
 [SugarTable("SonnetMixedCase")]

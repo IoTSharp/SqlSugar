@@ -207,7 +207,10 @@ namespace SqlSugar.SonnetDB
 
             if (IsSimpleColumn(firstSelectItem))
             {
-                return GetLastColumnSegment(firstSelectItem);
+                // Keep a qualified projection such as "d"."Id" qualified.  Removing
+                // the table prefix makes the automatically generated paging order
+                // ambiguous as soon as another joined table exposes an Id column.
+                return firstSelectItem;
             }
 
             if (IsConstant(firstSelectItem))
@@ -263,12 +266,6 @@ namespace SqlSugar.SonnetDB
         {
             var trimmed = value.Trim();
             return Regex.IsMatch(trimmed, "^(?:[-+]?\\d+(?:\\.\\d+)?|NULL|TRUE|FALSE|'(?:''|[^'])*'|\\\"(?:\\\"\\\"|[^\\\"])*\\\")$", RegexOptions.IgnoreCase);
-        }
-
-        private static string GetLastColumnSegment(string value)
-        {
-            var index = value.LastIndexOf('.');
-            return index < 0 ? value.Trim() : value.Substring(index + 1).Trim();
         }
 
         private static string GetFirstSelectItem(string selectValue)

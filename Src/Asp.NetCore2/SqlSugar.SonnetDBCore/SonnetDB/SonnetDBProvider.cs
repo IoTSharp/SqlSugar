@@ -159,7 +159,13 @@ namespace SqlSugar.SonnetDB
         {
             try
             {
-                return checked(Convert.ToInt32(value, CultureInfo.InvariantCulture));
+                var result = checked(Convert.ToInt32(value, CultureInfo.InvariantCulture));
+                if (result < ushort.MinValue || result > ushort.MaxValue)
+                {
+                    throw new OverflowException();
+                }
+
+                return result;
             }
             catch (Exception exception) when (exception is FormatException or InvalidCastException or OverflowException)
             {
@@ -171,7 +177,13 @@ namespace SqlSugar.SonnetDB
         {
             try
             {
-                return checked(Convert.ToInt64(value, CultureInfo.InvariantCulture));
+                var result = checked(Convert.ToInt64(value, CultureInfo.InvariantCulture));
+                if (result < uint.MinValue || result > uint.MaxValue)
+                {
+                    throw new OverflowException();
+                }
+
+                return result;
             }
             catch (Exception exception) when (exception is FormatException or InvalidCastException or OverflowException)
             {

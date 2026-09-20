@@ -41,7 +41,7 @@ namespace SqlSugar
         {
             for (var index = 0; index < reader.FieldCount; index++)
             {
-                var name = reader.GetName(index).Trim();
+                var name = reader.GetName(index);
                 if (table.Columns.Contains(name))
                 {
                     name += index;

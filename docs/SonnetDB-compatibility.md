@@ -56,7 +56,7 @@ dotnet test tests/SonnetDB.IoTSharpCompat.Tests/SonnetDB.IoTSharpCompat.Tests.cs
 | SqlSugar 使用面 | SonnetDB 目标 SQL / 规则 | 状态 | 注意事项 |
 | --- | --- | --- | --- |
 | 标识符与别名 | `"Device"`、`"d"."Id"` | 可映射 | 双引号标识符保留原始大小写；提供程序不应默认转小写。 |
-| 参数 | `@p`、`:p`、`?` | 已确认 | 分页参数同样支持；名称和位置参数均有解析器/绑定测试。 |
+| 参数 | `@p`、`:p` | 已确认 | SqlSugar 提供程序会统一绑定命名参数；原始 SonnetDB SQL 的 `?` 位置占位符不属于 SqlSugar `SugarParameter` 兼容接口。分页参数同样使用命名参数。 |
 | 基础筛选 | `= <> != < <= > >=`、`AND`、`OR`、`NOT`、`IS [NOT] NULL` | 已确认 | 保留 SQL 三值逻辑。 |
 | 条件表达式 | `CASE WHEN ... THEN ... ELSE ... END` | 已确认 | 用于 `SqlFunc.IIF`。 |
 | 集合与子查询 | `IN`、`NOT IN`、`EXISTS`、标量/派生表子查询 | 已确认 | 关系执行器有非相关子查询缓存和相关子查询路径；复杂 DML 子查询仍有局部限制。 |

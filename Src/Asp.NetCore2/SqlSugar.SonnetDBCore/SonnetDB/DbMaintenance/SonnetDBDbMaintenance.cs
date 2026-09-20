@@ -147,6 +147,15 @@ namespace SqlSugar.SonnetDB
             SonnetDBIdentifier.ThrowIfCrossDatabaseReference(tableName);
             var normalizedTableName = NormalizeIdentifier(tableName);
             var metadata = GetSchema("Columns", normalizedTableName);
+            if (metadata.Rows.Count == 0)
+            {
+                var resolvedTableName = ResolveTableName(normalizedTableName);
+                if (!string.Equals(resolvedTableName, normalizedTableName, StringComparison.Ordinal))
+                {
+                    normalizedTableName = resolvedTableName;
+                    metadata = GetSchema("Columns", normalizedTableName);
+                }
+            }
             var result = new List<DbColumnInfo>();
             foreach (DataRow row in metadata.Rows)
             {
@@ -181,7 +190,22 @@ namespace SqlSugar.SonnetDB
 
         public override List<string> GetIndexList(string tableName)
         {
-            var metadata = GetSchema("Indexes", NormalizeIdentifier(tableName));
+            if (string.IsNullOrWhiteSpace(tableName))
+            {
+                throw new ArgumentException("表名称不能为空。", nameof(tableName));
+            }
+
+            SonnetDBIdentifier.ThrowIfCrossDatabaseReference(tableName);
+            var normalizedTableName = NormalizeIdentifier(tableName);
+            var metadata = GetSchema("Indexes", normalizedTableName);
+            if (metadata.Rows.Count == 0)
+            {
+                var resolvedTableName = ResolveTableName(normalizedTableName);
+                if (!string.Equals(resolvedTableName, normalizedTableName, StringComparison.Ordinal))
+                {
+                    metadata = GetSchema("Indexes", resolvedTableName);
+                }
+            }
             return metadata.Rows.Cast<DataRow>()
                 .Select(row => GetString(row, "INDEX_NAME"))
                 .Where(name => !string.IsNullOrEmpty(name))
@@ -246,6 +270,11 @@ namespace SqlSugar.SonnetDB
 
         public override bool IsAnyIndex(string indexName)
         {
+            if (string.IsNullOrWhiteSpace(indexName))
+            {
+                throw new ArgumentException("索引名称不能为空。", nameof(indexName));
+            }
+
             var normalizedIndexName = NormalizeIdentifier(indexName);
             var metadata = GetSchema("Indexes");
             return metadata.Rows.Cast<DataRow>().Any(row => string.Equals(
@@ -461,6 +490,11 @@ namespace SqlSugar.SonnetDB
 
         public override bool DropIndex(string indexName)
         {
+            if (string.IsNullOrWhiteSpace(indexName))
+            {
+                throw new ArgumentException("索引名称不能为空。", nameof(indexName));
+            }
+
             var normalizedIndexName = NormalizeIdentifier(indexName);
             var matchingRow = GetSchema("Indexes").Rows.Cast<DataRow>().FirstOrDefault(row => string.Equals(
                 GetString(row, "INDEX_NAME"),
@@ -674,6 +708,20 @@ namespace SqlSugar.SonnetDB
             return connection.GetSchema(collectionName, new[] { null, null, tableName, null });
         }
 
+        private string? ResolveTableName(string? tableName)
+        {
+            if (string.IsNullOrWhiteSpace(tableName))
+            {
+                return tableName;
+            }
+
+            var tables = GetSchema("Tables");
+            return tables.Rows.Cast<DataRow>()
+                       .Select(row => GetString(row, "TABLE_NAME"))
+                       .FirstOrDefault(name => string.Equals(name, tableName, StringComparison.OrdinalIgnoreCase))
+                   ?? tableName;
+        }
+
         private List<string> ReadObjectNames(string sql)
         {
             var table = Context.Ado.GetDataTable(sql);
@@ -829,6 +877,22 @@ namespace SqlSugar.SonnetDB
                     $"空默认值仅适用于 SonnetDB 的 STRING 或 JSON 列，不能用于 {normalizedType}。");
             }
 
+            if (normalizedType == "STRING" || normalizedType == "JSON")
+            {
+                if (trimmed.Equals("NULL", StringComparison.OrdinalIgnoreCase))
+                {
+                    return trimmed;
+                }
+
+                if (trimmed.StartsWith("'", StringComparison.Ordinal) &&
+                    trimmed.EndsWith("'", StringComparison.Ordinal))
+                {
+                    return trimmed;
+                }
+
+                return "'" + trimmed.Replace("'", "''") + "'";
+            }
+
             if ((trimmed.StartsWith("'", StringComparison.Ordinal) &&
                  trimmed.EndsWith("'", StringComparison.Ordinal)) ||
                 trimmed.Equals("NULL", StringComparison.OrdinalIgnoreCase) ||
@@ -859,14 +923,17 @@ namespace SqlSugar.SonnetDB
             return trimmed;
         }
 
-        internal static bool AreEquivalentDefaults(string left, string right)
+        internal static bool AreEquivalentDefaults(string left, string right, string dataType)
         {
             if (string.IsNullOrWhiteSpace(left) && string.IsNullOrWhiteSpace(right))
             {
                 return true;
             }
 
-            return string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
+            var comparison = NormalizeDataType(dataType) is "STRING" or "JSON"
+                ? StringComparison.Ordinal
+                : StringComparison.OrdinalIgnoreCase;
+            return string.Equals(left?.Trim(), right?.Trim(), comparison);
         }
 
         private static bool IsBooleanLiteral(string value)

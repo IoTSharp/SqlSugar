@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
@@ -56,9 +57,9 @@ namespace SqlSugar.SonnetDB
             EnsureSingleEntityForIdentityReturn();
             InsertBuilder.IsReturnIdentity = true;
             PreToSql();
-            string sql = InsertBuilder.ToSqlString().Replace("$PrimaryKey", this.SqlBuilder.GetTranslationColumnName(GetIdentityKeys().FirstOrDefault()));
+            string sql = InsertBuilder.ToSqlString().Replace("$PrimaryKey", this.SqlBuilder.GetTranslationColumnName(GetIdentityColumn()));
             RestoreMapping();
-            var result = Convert.ToInt64(Ado.GetScalar(sql, InsertBuilder.Parameters == null ? null : InsertBuilder.Parameters.ToArray()) ?? "0");
+            var result = GetBigIdentityValue(Ado.GetScalar(sql, InsertBuilder.Parameters == null ? null : InsertBuilder.Parameters.ToArray()));
             After(sql, result);
             return result;
         }
@@ -67,9 +68,9 @@ namespace SqlSugar.SonnetDB
             EnsureSingleEntityForIdentityReturn();
             InsertBuilder.IsReturnIdentity = true;
             PreToSql();
-            string sql = InsertBuilder.ToSqlString().Replace("$PrimaryKey", this.SqlBuilder.GetTranslationColumnName(GetIdentityKeys().FirstOrDefault()));
+            string sql = InsertBuilder.ToSqlString().Replace("$PrimaryKey", this.SqlBuilder.GetTranslationColumnName(GetIdentityColumn()));
             RestoreMapping();
-            var result = Convert.ToInt64(await Ado.GetScalarAsync(sql, InsertBuilder.Parameters == null ? null : InsertBuilder.Parameters.ToArray()) ?? "0");
+            var result = GetBigIdentityValue(await Ado.GetScalarAsync(sql, InsertBuilder.Parameters == null ? null : InsertBuilder.Parameters.ToArray()));
             After(sql, result);
             return result;
         }
@@ -82,21 +83,22 @@ namespace SqlSugar.SonnetDB
             if (identityKeys.Count == 0) { return this.ExecuteCommand() > 0; }
             var idValue = ExecuteReturnBigIdentity();
             Check.Exception(identityKeys.Count > 1, "将自增键写回实体时不支持多个自增键。");
-            var identityKey = identityKeys.First();
-            object setValue = 0;
-            if (idValue > int.MaxValue)
-                setValue = idValue;
-            else
-                setValue = Convert.ToInt32(idValue);
-            var propertyName = this.Context.EntityMaintenance.GetPropertyName<T>(identityKey);
-            typeof(T).GetProperties().First(t => t.Name.ToUpper() == propertyName.ToUpper()).SetValue(result, setValue, null);
-            return idValue > 0;
+            return SetIdentityValue(result, identityKeys.First(), idValue);
         }
 
         public override async Task<bool> ExecuteCommandIdentityIntoEntityAsync()
         {
             EnsureSingleEntityForIdentityReturn();
-            return await base.ExecuteCommandIdentityIntoEntityAsync();
+            var result = InsertObjs.First();
+            var identityKeys = GetIdentityKeys();
+            if (identityKeys.Count == 0)
+            {
+                return await ExecuteCommandAsync() > 0;
+            }
+
+            var idValue = await ExecuteReturnBigIdentityAsync();
+            Check.Exception(identityKeys.Count > 1, "将自增键写回实体时不支持多个自增键。");
+            return SetIdentityValue(result, identityKeys.First(), idValue);
         }
 
         private void EnsureSingleEntityForIdentityReturn()
@@ -122,6 +124,46 @@ namespace SqlSugar.SonnetDB
         private static int GetIdentityValue(object value)
         {
             return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+        }
+
+        private static long GetBigIdentityValue(object value)
+        {
+            return value == null || value == DBNull.Value ? 0L : Convert.ToInt64(value);
+        }
+
+        private bool SetIdentityValue(T result, string identityKey, long idValue)
+        {
+            var property = this.Context.EntityMaintenance.GetProperty<T>(identityKey);
+            var propertyType = property.PropertyType;
+            var nullableType = Nullable.GetUnderlyingType(propertyType);
+            var targetType = nullableType ?? propertyType;
+            object setValue;
+
+            try
+            {
+                if (targetType.IsEnum)
+                {
+                    setValue = Enum.ToObject(targetType, idValue);
+                }
+                else
+                {
+                    setValue = Convert.ChangeType(idValue, targetType, CultureInfo.InvariantCulture);
+                }
+
+                if (nullableType != null)
+                {
+                    setValue = Activator.CreateInstance(propertyType, setValue)!;
+                }
+            }
+            catch (Exception exception) when (exception is InvalidCastException or FormatException or OverflowException or ArgumentException)
+            {
+                throw new InvalidOperationException(
+                    $"SonnetDB 返回的自增键 {idValue} 无法写回属性 {property.Name} ({propertyType.Name})。",
+                    exception);
+            }
+
+            property.SetValue(result, setValue, null);
+            return idValue > 0;
         }
 
     }

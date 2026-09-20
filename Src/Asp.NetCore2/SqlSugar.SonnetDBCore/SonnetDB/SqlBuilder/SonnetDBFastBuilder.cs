@@ -74,17 +74,10 @@ namespace SqlSugar.SonnetDB
                 return 0;
             }
 
-            var identityColumns = FastEntityInfo.Columns
+            var identityColumns = new HashSet<string>(FastEntityInfo.Columns
                 .Where(column => column.IsIdentity)
                 .Select(column => column.DbColumnName)
-                .ToList();
-            foreach (var column in identityColumns)
-            {
-                if (DbFastestProperties?.IsOffIdentity != true && table.Columns.Contains(column))
-                {
-                    table.Columns.Remove(column);
-                }
-            }
+                .Where(column => !string.IsNullOrWhiteSpace(column)), StringComparer.OrdinalIgnoreCase);
 
             try
             {
@@ -94,7 +87,9 @@ namespace SqlSugar.SonnetDB
                     await connection.OpenAsync();
                 }
 
-                var columns = table.Columns.Cast<DataColumn>().ToList();
+                var columns = table.Columns.Cast<DataColumn>()
+                    .Where(column => DbFastestProperties?.IsOffIdentity == true || !identityColumns.Contains(column.ColumnName))
+                    .ToList();
                 if (columns.Count == 0)
                 {
                     throw new ArgumentException("批量写入至少需要一个非自增列。", nameof(table));
