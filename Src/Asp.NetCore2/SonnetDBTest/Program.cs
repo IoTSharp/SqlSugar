@@ -19,6 +19,7 @@ try
     db.Aop.OnLogExecuting = (sql, _) => Console.WriteLine("执行 SQL：" + sql.Replace(Environment.NewLine, " "));
 
     验证CodeFirst与元数据(db);
+    验证不支持的代码优先备注(db);
     验证默认值演进(db);
     验证自增键类型(db);
     验证保留大小写标识符(db);
@@ -122,6 +123,16 @@ static void 验证默认值演进(SqlSugarClient db)
     断言(
         db.Queryable<字符串数字默认值设备>().Single().Text == "1",
         "STRING 默认值为数字文本时必须按字符串保存。");
+}
+
+static void 验证不支持的代码优先备注(SqlSugarClient db)
+{
+    Console.WriteLine("开始：代码优先备注边界");
+    必须抛出中文不支持异常(
+        "代码优先备注",
+        () => db.CodeFirst.InitTables<不支持备注设备>());
+    断言(!db.DbMaintenance.IsAnyTable("sonnet_unsupported_remark", false),
+        "代码优先拒绝备注后不应留下已创建的表。");
 }
 
 static void 验证自增键类型(SqlSugarClient db)
@@ -988,6 +999,15 @@ public sealed class SmokeDevice
 
     [SugarColumn(IsNullable = true)]
     public byte[]? Payload { get; set; }
+}
+
+[SugarTable("sonnet_unsupported_remark", "不支持的表备注")]
+public sealed class 不支持备注设备
+{
+    [SugarColumn(IsPrimaryKey = true)]
+    public int Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
 }
 
 [SugarTable("sonnet_default_evolution")]

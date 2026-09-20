@@ -41,6 +41,7 @@ namespace SqlSugar.SonnetDB
                     try
                     {
                         var entityInfo = Context.GetEntityNoCacheInitMappingInfo(entityType);
+                        EnsureRemarksSupported(entityInfo);
                         if (!Context.DbMaintenance.IsAnySystemTablePermissions())
                         {
                             Check.Exception(true, "数据库优先和代码优先需要访问 SonnetDB 元数据。");
@@ -211,6 +212,18 @@ namespace SqlSugar.SonnetDB
             {
                 throw new NotSupportedException(
                     $"SonnetDB 代码优先功能不能修改表“{tableName}”的主键。请创建替代表并迁移数据。");
+            }
+        }
+
+        private static void EnsureRemarksSupported(EntityInfo entityInfo)
+        {
+            var hasTableRemark = !string.IsNullOrWhiteSpace(entityInfo.TableDescription);
+            var hasColumnRemark = entityInfo.Columns?.Any(column =>
+                !column.IsIgnore && !string.IsNullOrWhiteSpace(column.ColumnDescription)) == true;
+            if (hasTableRemark || hasColumnRemark)
+            {
+                throw new NotSupportedException(
+                    "SonnetDB 关系表元数据不支持表备注或列备注，不能通过 SqlSugar 代码优先保存说明。请移除描述后重试。");
             }
         }
 
