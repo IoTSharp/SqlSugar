@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace SqlSugar.SonnetDB
 {
@@ -10,7 +11,10 @@ namespace SqlSugar.SonnetDB
     /// </summary>
     public class SonnetDBCodeFirst : CodeFirstProvider
     {
-        private static readonly object InitLock = new object();
+        // CodeFirstProvider 实例不是按 Context 缓存的，因此实例锁无法保护同一
+        // SqlSugarClient 的并发 InitTables。按 Context 保存锁既能保护映射表临时状态，
+        // 也不会让不同客户端或不同数据库彼此串行。
+        private static readonly ConditionalWeakTable<SqlSugarProvider, object> InitLocks = new();
 
         public override void InitTables(Type entityType)
         {
@@ -30,7 +34,8 @@ namespace SqlSugar.SonnetDB
                     return;
                 }
 
-                lock (InitLock)
+                var initLock = InitLocks.GetValue(Context, _ => new object());
+                lock (initLock)
                 {
                     var oldTableList = CopyMappingTables();
                     try
