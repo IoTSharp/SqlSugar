@@ -1,21 +1,21 @@
-# SonnetDB 冒烟验证
+# SonnetDB 验证
 
-这是 SqlSugar SonnetDB 提供程序的独立 `net10.0` 冒烟项目。
-
-运行：
+依赖正式 SonnetDB 4.0.0，使用 .NET 10。运行：
 
 ```powershell
 dotnet run --project Src/Asp.NetCore2/SonnetDBTest/SonnetDBTest.csproj
 ```
 
-项目在临时目录创建 SonnetDB 数据库，结束后自动清理。它覆盖：
+在独立临时数据库执行功能回归并自动清理，包含一万行 Insertable/Updateable/Fastest 插入和集合更新。通过 OnExecutingChangeSql 统计实际命令，确认每批一条集合 SQL，覆盖自增键、部分列、批次选项、decimal 小数、TIME、窗口、日期、JSON、复合键及事务回滚。
 
-- 代码优先建表、自增主键、视图、`JSON` 和 `BLOB` 元数据；
-- SqlSugar 的插入、查询、更新、删除与 `LIMIT/OFFSET` 分页；
-- `information_schema`、`CURRENT_UTC_DATETIME()`、`DATE_PART()`、`json_value()`；
-- 关系表 `BeginTran`、读己之写、`ROLLBACK` 和 `COMMIT`；
-- 已知方言边界：单结果集、无 CTE、无 `RIGHT JOIN`，以及不接受多条 SQL 拼接。
+完整性检查：
 
-当前 SonnetDB NuGet 包仅提供 `net10.0` ADO.NET 驱动，因此该项目和提供程序都必须使用 .NET 10 或更高版本。
+```powershell
+dotnet run --project Src/Asp.NetCore2/SonnetDBTest/SonnetDBTest.csproj -- --check-capabilities
+```
 
-提供程序通过旁加载程序集进行动态类型创建；NativeAOT、激进裁剪和 single-file 捆绑发布暂未支持，请使用保留独立 DLL 的普通发布方式。
+额外验证标准 CodeFirst 的事务 DDL、多结果集、原生临时表、TranLock、高有效位 decimal、DATETIME 亚毫秒和 ALTER DECIMAL 精度。SonnetDB 4.0.0 当前缺少这些合同，因此完整检查预期返回非零，不能据基础功能通过宣称完整兼容。
+
+元数据建表通过已有 DbMaintenance 接口准备功能用例；基类 CodeFirst 单独接受完整性检查。QueryChecks 保留窗口、字符串位置、日期时间回读、JSON 存在/缺失、关联更新及差异日志的语义回归。MetadataChecks 实际编译 DbFirst 生成模型，在 `de-DE` 文化下检查默认值，并验证可空 TimeOnly/TimeSpan 实体读回。
+
+详见 [兼容说明](../../../docs/SonnetDB-compatibility.md) 和 [数据库 issue](../../../docs/SonnetDB-issues.md)。本次测试为嵌入式模式，不代表远程或其他发布方式已验证。

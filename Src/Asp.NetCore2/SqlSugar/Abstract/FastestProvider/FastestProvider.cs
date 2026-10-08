@@ -508,22 +508,14 @@ namespace SqlSugar
         {
             var datas =new string[dataTable.Rows.Count].ToList();
             Begin(datas, true);
-            var originalTableName = dataTable.TableName;
-            try
-            {
-                DataTable dt = dataTable;
-                dt.TableName = this.queryable.SqlBuilder.GetTranslationTableName(tableName);
-                dt = GetCopyWriteDataTable(dt);
-                IFastBuilder buider = GetBuider();
-                buider.Context = context;
-                var result = await buider.ExecuteBulkCopyAsync(dt);
-                End(datas, true);
-                return result;
-            }
-            finally
-            {
-                dataTable.TableName = originalTableName;
-            }
+            DataTable dt = dataTable;
+            dt.TableName =this.queryable.SqlBuilder.GetTranslationTableName(tableName);
+            dt = GetCopyWriteDataTable(dt);
+            IFastBuilder buider = GetBuider();
+            buider.Context = context;
+            var result = await buider.ExecuteBulkCopyAsync(dt);
+            End(datas, true);
+            return result;
         }
         #endregion
 

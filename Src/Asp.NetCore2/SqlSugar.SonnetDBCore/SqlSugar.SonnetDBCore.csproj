@@ -8,10 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SonnetDB" Version="3.1.0" />
-    <!-- SqlSugar 的 Microsoft.Data.SqlClient 会带入这些身份验证依赖；显式锁定已修复版本，避免还原到有漏洞的传递版本。 -->
-    <PackageReference Include="Azure.Identity" Version="1.21.0" />
-    <PackageReference Include="Microsoft.Identity.Client" Version="4.90.0" />
+    <PackageReference Include="SonnetDB" Version="4.0.0" />
   </ItemGroup>
 
   <ItemGroup>

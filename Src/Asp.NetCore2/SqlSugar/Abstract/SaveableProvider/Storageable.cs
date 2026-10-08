@@ -82,10 +82,6 @@ namespace SqlSugar
 
         public IStorageable<T> TranLock(DbLockType dbLockType = DbLockType.Wait) 
         {
-            if (this.Context.CurrentConnectionConfig.DbType == DbType.SonnetDB)
-            {
-                throw new NotSupportedException("SonnetDB 当前不支持 SqlSugar 的事务行锁语义。");
-            }
             this.lockType = dbLockType;
             return this;
         }
@@ -93,10 +89,6 @@ namespace SqlSugar
         {
             if (LockType!=null)
             {
-                if (this.Context.CurrentConnectionConfig.DbType == DbType.SonnetDB)
-                {
-                    throw new NotSupportedException("SonnetDB 当前不支持 SqlSugar 的事务行锁语义。");
-                }
                 this.lockType = LockType;
                 return this;
             }

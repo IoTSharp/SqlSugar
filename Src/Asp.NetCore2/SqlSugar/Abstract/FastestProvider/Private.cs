@@ -68,6 +68,8 @@ namespace SqlSugar
             if (reslut.DbFastestProperties != null)
             {
                 reslut.DbFastestProperties.IsOffIdentity = this.IsOffIdentity;
+                reslut.DbFastestProperties.BatchSize = this.BatchsSize;
+                reslut.DbFastestProperties.IsIgnoreInsertError = this.IsIgnoreInsertError;
             }
             return reslut;
         }
@@ -187,11 +189,7 @@ namespace SqlSugar
                     {
                         if (builder.DbFastestProperties != null && builder.DbFastestProperties.HasOffsetTime == true)
                         {
-                            // 提供程序自行处理偏移时间值。
-                        }
-                        else if (builder.DbFastestProperties?.IsConvertDateTimeOffsetToUtcDateTime == true)
-                        {
-                            value = ((DateTimeOffset)value).UtcDateTime;
+                            //Don't need to deal with
                         }
                         else
                         {
@@ -337,14 +335,8 @@ namespace SqlSugar
                 DataRow dr = tempDataTable.NewRow();
                 foreach (DataColumn column in columns)
                 {
-                    var value = item[column.ColumnName];
-                    if (builder.DbFastestProperties?.IsConvertDateTimeOffsetToUtcDateTime == true &&
-                        value is DateTimeOffset dateTimeOffset)
-                    {
-                        value = dateTimeOffset.UtcDateTime;
-                    }
 
-                    dr[column.ColumnName] = value;
+                    dr[column.ColumnName] = item[column.ColumnName];
                     if (dr[column.ColumnName] == null|| dr[column.ColumnName] == DBNull.Value)
                     {
                         dr[column.ColumnName] = DBNull.Value;
